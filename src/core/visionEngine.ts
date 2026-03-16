@@ -14,13 +14,53 @@ import { execSync, spawn } from "node:child_process";
 import { readFileSync, existsSync, unlinkSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
+import { createRequire } from "node:module";
 import { CLOUD_LLM } from "../config/llmConfig.js";
 
 const SCREENSHOTS_DIR = join(tmpdir(), "superos-vision");
+const VISION_TIMEOUT_MS = 15000;
+const VISION_MAX_RETRIES = 2;
 
 function ensureDir(): void {
   if (!existsSync(SCREENSHOTS_DIR)) mkdirSync(SCREENSHOTS_DIR, { recursive: true });
 }
+
+function parseScaleFactor(): number {
+  const envScale = Number.parseFloat(process.env.SUPEROS_SCALE_FACTOR ?? "");
+  if (Number.isFinite(envScale) && envScale > 0) return envScale;
+  if (process.platform !== "win32") return 1;
+  try {
+    const require = createRequire(import.meta.url);
+    const electron = require("electron") as { screen?: { getPrimaryDisplay: () => { scaleFactor?: number } } };
+    const factor = electron?.screen?.getPrimaryDisplay()?.scaleFactor ?? Number.NaN;
+    if (Number.isFinite(factor) && factor > 0) return factor;
+  } catch (e) {
+    console.debug?.("[vision] Electron scaleFactor 不可用:", (e as Error)?.message ?? e);
+  }
+  try {
+    const ps = `
+Add-Type -TypeDefinition @'
+using System;
+using System.Runtime.InteropServices;
+public class DpiUtil {
+  [DllImport("user32.dll")] public static extern int GetDpiForSystem();
+}
+'@
+[DpiUtil]::GetDpiForSystem() / 96.0
+`;
+    const output = execSync(`powershell -NoProfile -Command "${ps.replace(/\n/g, " ")}"`, {
+      encoding: "utf8",
+      timeout: 2000,
+    });
+    const factor = Number.parseFloat(output);
+    if (Number.isFinite(factor) && factor > 0) return factor;
+  } catch {
+    /* fallback to 1 */
+  }
+  return 1;
+}
+
+const SCALE_FACTOR = parseScaleFactor();
 
 // ─── 截图 ───
 
@@ -85,7 +125,16 @@ export async function locateElementByVision(
     return { found: false, x: 0, y: 0, confidence: 0, description: "无 Cloud API Key" };
   }
 
-  const imageData = readFileSync(screenshotPath).toString("base64");
+  if (!existsSync(screenshotPath)) {
+    return { found: false, x: 0, y: 0, confidence: 0, description: "截图不存在" };
+  }
+
+  let imageData: string;
+  try {
+    imageData = readFileSync(screenshotPath).toString("base64");
+  } catch (e) {
+    return { found: false, x: 0, y: 0, confidence: 0, description: (e as Error).message };
+  }
   const mimeType = "image/png";
 
   const systemPrompt = `你是一个精确的 UI 元素定位器。用户会给你一张桌面截图和目标元素描述。
@@ -94,37 +143,59 @@ export async function locateElementByVision(
 如果找不到，返回：{"found": false, "x": 0, "y": 0, "confidence": 0, "description": "原因"}
 只输出 JSON，不要其他文字。`;
 
-  const resp = await fetch(`${CLOUD_LLM.baseURL}/chat/completions`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${CLOUD_LLM.apiKey}`,
-    },
-    body: JSON.stringify({
-      model: CLOUD_LLM.model,
-      messages: [
-        { role: "system", content: systemPrompt },
-        {
-          role: "user",
-          content: [
-            { type: "text", text: `请在截图中定位：「${targetDescription}」` },
-            { type: "image_url", image_url: { url: `data:${mimeType};base64,${imageData}` } },
-          ],
+  let content = "";
+
+  for (let attempt = 0; attempt <= VISION_MAX_RETRIES; attempt++) {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), VISION_TIMEOUT_MS);
+    try {
+      const resp = await fetch(`${CLOUD_LLM.baseURL}/chat/completions`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${CLOUD_LLM.apiKey}`,
         },
-      ],
-      max_tokens: 200,
-      temperature: 0.1,
-    }),
-  });
+        body: JSON.stringify({
+          model: CLOUD_LLM.model,
+          messages: [
+            { role: "system", content: systemPrompt },
+            {
+              role: "user",
+              content: [
+                { type: "text", text: `请在截图中定位：「${targetDescription}」` },
+                { type: "image_url", image_url: { url: `data:${mimeType};base64,${imageData}` } },
+              ],
+            },
+          ],
+          max_tokens: 200,
+          temperature: 0.1,
+        }),
+        signal: controller.signal,
+      });
+      clearTimeout(timeout);
 
-  if (!resp.ok) {
-    const errText = await resp.text().catch(() => "");
-    console.error("[vision] LLM 请求失败:", resp.status, errText);
-    return { found: false, x: 0, y: 0, confidence: 0, description: `API ${resp.status}` };
+      if (!resp.ok) {
+        const errText = await resp.text().catch(() => "");
+        console.error("[vision] LLM 请求失败:", resp.status, errText);
+        if (attempt === VISION_MAX_RETRIES) {
+          return { found: false, x: 0, y: 0, confidence: 0, description: `API ${resp.status}` };
+        }
+        await new Promise((r) => setTimeout(r, 300 * (attempt + 1)));
+        continue;
+      }
+
+      const json = (await resp.json()) as { choices?: Array<{ message?: { content?: string } }> };
+      content = json.choices?.[0]?.message?.content ?? "";
+      break;
+    } catch (e) {
+      clearTimeout(timeout);
+      console.warn(`[vision] LLM 调用异常（第 ${attempt + 1} 次）:`, (e as Error).message);
+      if (attempt === VISION_MAX_RETRIES) {
+        return { found: false, x: 0, y: 0, confidence: 0, description: (e as Error).message };
+      }
+      await new Promise((r) => setTimeout(r, 300 * (attempt + 1)));
+    }
   }
-
-  const json = (await resp.json()) as { choices?: Array<{ message?: { content?: string } }> };
-  const content = json.choices?.[0]?.message?.content ?? "";
 
   try {
     const codeMatch = content.match(/```(?:json)?\s*([\s\S]*?)```/) ?? [null, content];
@@ -148,6 +219,15 @@ export async function locateElementByVision(
  * 在指定屏幕坐标处模拟鼠标左键单击
  */
 export function clickAtCoordinate(x: number, y: number): void {
+  const scale = SCALE_FACTOR;
+  const sanitizeCoordinate = (v: number): number => {
+    if (!Number.isFinite(v)) return 0;
+    const rounded = Math.round(v);
+    if (rounded < 0) return 0;
+    return rounded;
+  };
+  const scaledX = sanitizeCoordinate(x * scale);
+  const scaledY = sanitizeCoordinate(y * scale);
   const ps = `
 Add-Type -TypeDefinition @'
 using System;
@@ -163,7 +243,7 @@ public class MouseSim {
   }
 }
 '@
-[MouseSim]::Click(${x}, ${y})
+[MouseSim]::Click(${scaledX.toString(10)}, ${scaledY.toString(10)})
 `;
   execSync(`powershell -NoProfile -Command "${ps.replace(/\n/g, " ")}"`, { timeout: 5000 });
 }
