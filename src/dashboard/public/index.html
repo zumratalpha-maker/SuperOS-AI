@@ -1,0 +1,615 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SuperOS</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg:#08090d;--surface:#0e1017;--card:#12141e;--card-hover:#161828;
+  --border:rgba(255,255,255,.05);--border-hover:rgba(99,102,241,.3);
+  --text:#e2e4ed;--text2:#6b6f82;--text3:#3e4050;
+  --accent:#6366f1;--accent2:#818cf8;--accent-glow:rgba(99,102,241,.12);
+  --green:#34d399;--red:#f87171;--yellow:#fbbf24;--purple:#a78bfa;--cyan:#22d3ee;
+  --radius:14px;
+}
+body{
+  font-family:'Segoe UI','Microsoft YaHei UI',Inter,sans-serif;
+  background:var(--bg);color:var(--text);min-height:100vh;
+  background-image:radial-gradient(ellipse 80% 60% at 50% -20%,rgba(99,102,241,.06),transparent);
+}
+.header{
+  position:sticky;top:0;z-index:100;
+  background:rgba(8,9,13,.85);backdrop-filter:blur(20px) saturate(1.4);
+  border-bottom:1px solid var(--border);
+  padding:14px 28px;display:flex;align-items:center;justify-content:space-between;
+}
+.logo{
+  font-size:18px;font-weight:800;letter-spacing:1.5px;
+  background:linear-gradient(135deg,#6366f1,#60a5fa,#34d399);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+}
+.logo-sub{font-size:11px;color:var(--text2);margin-left:10px;font-weight:400;letter-spacing:0}
+.header-actions{display:flex;align-items:center;gap:14px}
+.status-pills{display:flex;gap:8px}
+.pill{
+  display:inline-flex;align-items:center;gap:5px;
+  padding:4px 12px;border-radius:20px;font-size:11px;font-weight:500;
+  background:rgba(255,255,255,.03);border:1px solid var(--border);
+}
+.pill .dot{width:6px;height:6px;border-radius:50%}
+.pill .dot.g{background:var(--green)}.pill .dot.r{background:var(--red)}.pill .dot.y{background:var(--yellow)}
+.refresh-btn{
+  background:var(--accent);color:#fff;border:none;border-radius:8px;
+  padding:6px 16px;font-size:12px;cursor:pointer;font-weight:600;
+  transition:all .2s;font-family:inherit;
+}
+.refresh-btn:hover{opacity:.85;transform:translateY(-1px)}
+
+.nav{
+  display:flex;gap:4px;padding:8px 28px;
+  border-bottom:1px solid var(--border);background:var(--surface);
+  overflow-x:auto;scrollbar-width:none;
+}
+.nav::-webkit-scrollbar{display:none}
+.nav-btn{
+  padding:6px 16px;border-radius:8px;border:none;
+  font-size:12px;color:var(--text2);background:none;cursor:pointer;
+  transition:all .15s;font-family:inherit;white-space:nowrap;
+}
+.nav-btn.active{background:var(--accent-glow);color:var(--accent2);font-weight:600}
+.nav-btn:hover:not(.active){color:var(--text)}
+
+.main{padding:20px 28px 40px}
+.section{display:none}
+.section.active{display:block}
+
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:14px}
+.card{
+  background:var(--card);
+  border:1px solid var(--border);border-radius:var(--radius);
+  padding:20px;transition:all .25s;
+  position:relative;overflow:hidden;
+}
+.card::before{
+  content:'';position:absolute;top:0;left:0;right:0;height:1px;
+  background:linear-gradient(90deg,transparent,rgba(99,102,241,.15),transparent);
+}
+.card:hover{border-color:var(--border-hover);background:var(--card-hover)}
+.card h2{
+  font-size:13px;font-weight:600;margin-bottom:16px;
+  display:flex;align-items:center;gap:8px;color:var(--text2);
+  text-transform:uppercase;letter-spacing:.5px;
+}
+.card h2 .icon{font-size:16px}
+
+.stat-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
+.stat{
+  background:rgba(255,255,255,.02);border:1px solid var(--border);
+  border-radius:10px;padding:14px;text-align:center;
+  transition:background .2s;
+}
+.stat:hover{background:var(--accent-glow)}
+.stat .num{font-size:26px;font-weight:700;color:var(--accent2);letter-spacing:-0.5px}
+.stat .label{font-size:11px;color:var(--text2);margin-top:4px;letter-spacing:.3px}
+
+.list{display:flex;flex-direction:column;gap:6px;max-height:320px;overflow-y:auto;scrollbar-width:thin;scrollbar-color:rgba(255,255,255,.06) transparent}
+.list::-webkit-scrollbar{width:3px}
+.list::-webkit-scrollbar-thumb{background:rgba(255,255,255,.06);border-radius:2px}
+.list-item{
+  background:rgba(255,255,255,.02);border:1px solid var(--border);
+  border-radius:10px;padding:10px 14px;font-size:12px;
+  display:flex;justify-content:space-between;align-items:center;
+  transition:all .15s;
+}
+.list-item:hover{background:rgba(99,102,241,.05);border-color:var(--border-hover)}
+.list-item .name{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+.badge{
+  padding:3px 10px;border-radius:6px;font-size:10px;font-weight:600;
+  letter-spacing:.3px;
+}
+.badge.success{background:rgba(52,211,153,.1);color:var(--green)}
+.badge.fail{background:rgba(248,113,113,.1);color:var(--red)}
+.badge.pending{background:rgba(251,191,36,.1);color:var(--yellow)}
+.badge.running{background:rgba(99,102,241,.1);color:var(--accent2)}
+.badge.info{background:rgba(34,211,238,.1);color:var(--cyan)}
+
+.bar{height:4px;background:var(--border);border-radius:2px;overflow:hidden;flex:1}
+.bar .fill{height:100%;border-radius:2px;transition:width .5s ease}
+.bar .fill.blue{background:linear-gradient(90deg,var(--accent),#60a5fa)}
+.bar .fill.green{background:linear-gradient(90deg,#059669,var(--green))}
+
+.pref-row{
+  display:flex;justify-content:space-between;padding:8px 0;
+  border-bottom:1px solid var(--border);font-size:12px;
+}
+.pref-row:last-child{border:none}
+.pref-key{color:var(--text2)}.pref-val{font-weight:600}
+
+.suggest{
+  background:rgba(167,139,250,.05);border:1px solid rgba(167,139,250,.08);
+  border-radius:10px;padding:12px 14px;margin-bottom:6px;font-size:12px;
+}
+.suggest .reason{color:var(--text2);font-size:11px;margin-top:3px}
+
+.chart{display:flex;align-items:flex-end;gap:3px;height:100px;padding-top:8px}
+.chart-bar{
+  flex:1;border-radius:3px 3px 0 0;min-height:2px;position:relative;
+  transition:height .4s ease;
+  background:linear-gradient(to top,var(--accent),rgba(99,102,241,.3));
+}
+.chart-bar:hover{opacity:.7}
+.chart-labels{display:flex;justify-content:space-between;margin-top:4px}
+.chart-labels span{font-size:9px;color:var(--text3)}
+
+.empty{color:var(--text2);font-size:12px;text-align:center;padding:24px;line-height:1.6}
+
+.hero-stats{
+  display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:18px;
+}
+.hero-stat{
+  background:var(--card);border:1px solid var(--border);border-radius:var(--radius);
+  padding:18px 20px;position:relative;overflow:hidden;
+}
+.hero-stat::after{
+  content:'';position:absolute;bottom:0;left:0;right:0;height:2px;
+}
+.hero-stat.a::after{background:linear-gradient(90deg,var(--accent),transparent)}
+.hero-stat.b::after{background:linear-gradient(90deg,var(--green),transparent)}
+.hero-stat.c::after{background:linear-gradient(90deg,var(--purple),transparent)}
+.hero-stat.d::after{background:linear-gradient(90deg,var(--cyan),transparent)}
+.hero-stat .num{font-size:32px;font-weight:800;letter-spacing:-1px}
+.hero-stat.a .num{color:var(--accent2)}.hero-stat.b .num{color:var(--green)}
+.hero-stat.c .num{color:var(--purple)}.hero-stat.d .num{color:var(--cyan)}
+.hero-stat .label{font-size:11px;color:var(--text2);margin-top:2px}
+
+.guide-section{
+  background:var(--card);border:1px solid var(--border);border-radius:var(--radius);
+  padding:24px;margin-bottom:14px;
+}
+.guide-section h3{font-size:15px;font-weight:700;margin-bottom:12px;color:var(--accent2)}
+.guide-step{
+  display:flex;gap:12px;margin-bottom:14px;align-items:flex-start;
+}
+.guide-num{
+  width:28px;height:28px;border-radius:50%;flex-shrink:0;
+  background:var(--accent-glow);color:var(--accent2);
+  display:flex;align-items:center;justify-content:center;
+  font-size:12px;font-weight:700;
+}
+.guide-text{font-size:13px;color:var(--text);line-height:1.6}
+.guide-text code{
+  background:rgba(99,102,241,.1);color:var(--accent2);
+  padding:2px 6px;border-radius:4px;font-size:12px;font-family:'Consolas','Courier New',monospace;
+}
+.guide-text .note{color:var(--text2);font-size:11px;display:block;margin-top:3px}
+
+.kbd{
+  display:inline-flex;align-items:center;padding:2px 8px;
+  background:rgba(255,255,255,.06);border:1px solid var(--border);
+  border-radius:4px;font-size:11px;font-family:monospace;color:var(--text2);
+}
+
+@media(max-width:800px){
+  .hero-stats{grid-template-columns:repeat(2,1fr)}
+  .grid{grid-template-columns:1fr}
+  .header{padding:12px 16px}
+  .main{padding:16px}
+}
+</style>
+</head>
+<body>
+<div class="header">
+  <div style="display:flex;align-items:baseline">
+    <span class="logo">SUPEROS</span>
+    <span class="logo-sub">Autonomous Desktop Agent</span>
+  </div>
+  <div class="header-actions">
+    <div class="status-pills" id="statusBar">
+      <span class="pill"><span class="dot y"></span>加载中</span>
+    </div>
+    <button class="refresh-btn" onclick="loadAll()">刷新</button>
+  </div>
+</div>
+
+<div class="nav" id="navBar">
+  <button class="nav-btn active" data-tab="overview" onclick="switchTab('overview')">总览</button>
+  <button class="nav-btn" data-tab="tasks" onclick="switchTab('tasks')">任务</button>
+  <button class="nav-btn" data-tab="skills" onclick="switchTab('skills')">技能库</button>
+  <button class="nav-btn" data-tab="memory" onclick="switchTab('memory')">记忆</button>
+  <button class="nav-btn" data-tab="plugins" onclick="switchTab('plugins')">插件</button>
+  <button class="nav-btn" data-tab="security" onclick="switchTab('security')">安全</button>
+  <button class="nav-btn" data-tab="guide" onclick="switchTab('guide')">使用指南</button>
+</div>
+
+<div class="main">
+
+  <!-- ═══ 总览 ═══ -->
+  <div class="section active" id="sec-overview">
+    <div class="hero-stats">
+      <div class="hero-stat a"><div class="num" id="heroTasks">0</div><div class="label">总任务</div></div>
+      <div class="hero-stat b"><div class="num" id="heroSkills">0</div><div class="label">已学技能</div></div>
+      <div class="hero-stat c"><div class="num" id="heroNodes">0</div><div class="label">知识节点</div></div>
+      <div class="hero-stat d"><div class="num" id="heroPlugins">0</div><div class="label">已加载插件</div></div>
+    </div>
+    <div class="grid">
+      <div class="card">
+        <h2><span class="icon">&#9881;</span> 系统状态</h2>
+        <div class="stat-grid" id="systemStats">
+          <div class="stat"><div class="num">--</div><div class="label">磁盘可用</div></div>
+          <div class="stat"><div class="num">--</div><div class="label">内存可用</div></div>
+          <div class="stat"><div class="num">--</div><div class="label">网络延迟</div></div>
+          <div class="stat"><div class="num">--</div><div class="label">管理员</div></div>
+        </div>
+      </div>
+      <div class="card">
+        <h2><span class="icon">&#10024;</span> 智能推荐</h2>
+        <div id="suggestions"><div class="empty">暂无推荐（使用后自动积累）</div></div>
+      </div>
+      <div class="card">
+        <h2><span class="icon">&#128200;</span> 活跃时段</h2>
+        <div class="chart" id="hourChart"></div>
+        <div class="chart-labels">
+          <span>0:00</span><span>6:00</span><span>12:00</span><span>18:00</span><span>23:00</span>
+        </div>
+      </div>
+      <div class="card">
+        <h2><span class="icon">&#9881;</span> 用户偏好</h2>
+        <div id="preferences"><div class="empty">暂无数据</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ 任务 ═══ -->
+  <div class="section" id="sec-tasks">
+    <div class="hero-stats" style="grid-template-columns:repeat(4,1fr)">
+      <div class="hero-stat a"><div class="num" id="taskTotal">0</div><div class="label">总任务</div></div>
+      <div class="hero-stat" style="border-bottom:2px solid var(--yellow)"><div class="num" style="color:var(--yellow)" id="taskPending">0</div><div class="label">待执行</div></div>
+      <div class="hero-stat b"><div class="num" id="taskDone">0</div><div class="label">已完成</div></div>
+      <div class="hero-stat" style="border-bottom:2px solid var(--red)"><div class="num" style="color:var(--red)" id="taskFailed">0</div><div class="label">失败</div></div>
+    </div>
+    <div class="grid">
+      <div class="card" style="grid-column:1/-1">
+        <h2><span class="icon">&#128203;</span> 任务列表</h2>
+        <div class="list" id="taskList"><div class="empty">暂无任务</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ 技能库 ═══ -->
+  <div class="section" id="sec-skills">
+    <div class="hero-stats" style="grid-template-columns:repeat(4,1fr)">
+      <div class="hero-stat c"><div class="num" id="skillActive">0</div><div class="label">已学技能</div></div>
+      <div class="hero-stat b"><div class="num" id="skillRate">--</div><div class="label">成功率</div></div>
+      <div class="hero-stat" style="border-bottom:2px solid var(--red)"><div class="num" style="color:var(--red)" id="skillDeprecated">0</div><div class="label">已废弃</div></div>
+      <div class="hero-stat d"><div class="num" id="skillConf">--</div><div class="label">平均置信度</div></div>
+    </div>
+    <div class="grid">
+      <div class="card" style="grid-column:1/-1">
+        <h2><span class="icon">&#128218;</span> 已学技能</h2>
+        <div class="list" id="skillList"><div class="empty">尚未学习任何技能。使用系统后会自动上网搜索、学习新技能。</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ 记忆 ═══ -->
+  <div class="section" id="sec-memory">
+    <div class="grid">
+      <div class="card">
+        <h2><span class="icon">&#129504;</span> 知识图谱</h2>
+        <div class="stat-grid" id="graphStats">
+          <div class="stat"><div class="num">0</div><div class="label">节点</div></div>
+          <div class="stat"><div class="num">0</div><div class="label">关系</div></div>
+          <div class="stat"><div class="num">0</div><div class="label">场景</div></div>
+          <div class="stat"><div class="num">0</div><div class="label">操作</div></div>
+        </div>
+      </div>
+      <div class="card">
+        <h2><span class="icon">&#128260;</span> 常用操作序列</h2>
+        <div class="list" id="sequenceList"><div class="empty">暂无数据</div></div>
+      </div>
+      <div class="card">
+        <h2><span class="icon">&#127919;</span> 最常操作目标</h2>
+        <div class="list" id="topTargets"><div class="empty">暂无数据</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ 插件 ═══ -->
+  <div class="section" id="sec-plugins">
+    <div class="grid">
+      <div class="card" style="grid-column:1/-1">
+        <h2><span class="icon">&#128268;</span> 场景插件</h2>
+        <div class="list" id="pluginList"><div class="empty">加载中…</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ 安全 ═══ -->
+  <div class="section" id="sec-security">
+    <div class="grid">
+      <div class="card" style="grid-column:1/-1">
+        <h2><span class="icon">&#128274;</span> 安全审计日志</h2>
+        <div class="list" id="auditList"><div class="empty">暂无审计日志</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ 使用指南 ═══ -->
+  <div class="section" id="sec-guide">
+    <div class="guide-section">
+      <h3>快速开始</h3>
+      <div class="guide-step">
+        <div class="guide-num">1</div>
+        <div class="guide-text">
+          <b>启动系统</b>：在终端执行 <code>npm run start</code> 进入命令行模式，或 <code>npm run electron:dev</code> 启动桌面版
+          <span class="note">桌面版启动后，按 <kbd class="kbd">Alt+Space</kbd> 唤醒输入框</span>
+        </div>
+      </div>
+      <div class="guide-step">
+        <div class="guide-num">2</div>
+        <div class="guide-text">
+          <b>文字/语音切换</b>：在指令窗口右上角点击「语音」模式，再点麦克风图标即可用语音下达指令
+          <span class="note">语音使用浏览器 Speech API（Chrome 支持最好）</span>
+        </div>
+      </div>
+      <div class="guide-step">
+        <div class="guide-num">3</div>
+        <div class="guide-text">
+          <b>下达指令</b>：用自然语言描述你想做的事，例如：
+          <span class="note">「帮我在通义万相生成一张宇宙飞船的图片」</span>
+          <span class="note">「制作一个口播短视频，主题是AI改变生活」</span>
+          <span class="note">「打开微信发消息给张三」</span>
+          <span class="note">「帮我下载这个YouTube视频」</span>
+        </div>
+      </div>
+      <div class="guide-step">
+        <div class="guide-num">4</div>
+        <div class="guide-text">
+          <b>创作流水线</b>：说「做口播视频」「做漫剧」「做图文」会进入交互式流水线，系统会：
+          <span class="note">选择工具 → 检查登录 → 展示计划 → 你确认 → 自动执行 → 关键节点暂停让你确认</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="guide-section">
+      <h3>核心能力</h3>
+      <div class="guide-step">
+        <div class="guide-num">A</div>
+        <div class="guide-text">
+          <b>自学能力</b>：遇到不会的任务，系统自动上网搜索教程、提取操作步骤、存入技能库。下次再遇到同类任务直接执行。
+          <span class="note">技能库可在「技能库」标签页查看和管理</span>
+        </div>
+      </div>
+      <div class="guide-step">
+        <div class="guide-num">B</div>
+        <div class="guide-text">
+          <b>桌面 App 优先</b>：如果桌面安装了 Grok、豆包等应用，系统会优先使用桌面版（已登录），而不是打开网页重新登录。
+        </div>
+      </div>
+      <div class="guide-step">
+        <div class="guide-num">C</div>
+        <div class="guide-text">
+          <b>记忆与习惯</b>：系统会记住你的操作习惯（常用路径、偏好工具、活跃时间），越用越聪明。
+          <span class="note">记忆数据可在「记忆」标签页查看</span>
+        </div>
+      </div>
+      <div class="guide-step">
+        <div class="guide-num">D</div>
+        <div class="guide-text">
+          <b>安全边界</b>：高风险操作（删除文件、执行脚本等）会自动弹出确认，不会误操作。
+          <span class="note">安全日志可在「安全」标签页查看</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="guide-section">
+      <h3>控制面板</h3>
+      <div class="guide-step">
+        <div class="guide-num">1</div>
+        <div class="guide-text">
+          <b>启动面板</b>：执行 <code>npm run dashboard</code> 然后访问 <code>http://localhost:3200</code>
+          <span class="note">桌面版右键托盘图标 → 控制面板</span>
+        </div>
+      </div>
+      <div class="guide-step">
+        <div class="guide-num">2</div>
+        <div class="guide-text">
+          <b>录制工作流</b>：在命令行输入 <code>录制工作流 [名称]</code>，然后手动操作，完成后输入 <code>停止录制</code>。下次输入 <code>回放 [名称]</code> 即可重复。
+        </div>
+      </div>
+      <div class="guide-step">
+        <div class="guide-num">3</div>
+        <div class="guide-text">
+          <b>插件扩展</b>：遇到未知场景，系统会自动调用 AI 生成插件代码，自动加载执行。你也可以手动放插件到 <code>src/plugins/</code> 目录。
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+const API = '';
+let currentTab = 'overview';
+
+function switchTab(tab) {
+  currentTab = tab;
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
+  document.querySelectorAll('.section').forEach(s => s.classList.toggle('active', s.id === 'sec-' + tab));
+}
+
+async function get(path) {
+  try { const r = await fetch(API + path); return await r.json(); }
+  catch(e) { console.error(path, e); return null; }
+}
+
+async function loadSystem() {
+  const d = await get('/api/system');
+  if (!d) return;
+  const netOk = d.network?.connected;
+  document.getElementById('statusBar').innerHTML = `
+    <span class="pill"><span class="dot ${netOk?'g':'r'}"></span>${netOk?'网络正常':'离线'}</span>
+    <span class="pill">内存 ${d.memory?.usedPercent??'--'}%</span>
+    <span class="pill">磁盘 ${d.disk?.usedPercent??'--'}%</span>
+  `;
+  document.getElementById('systemStats').innerHTML = `
+    <div class="stat"><div class="num">${d.disk?.freeGB?.toFixed(0)??'--'}</div><div class="label">磁盘可用(GB)</div></div>
+    <div class="stat"><div class="num">${d.memory?.availableGB?.toFixed(1)??'--'}</div><div class="label">内存可用(GB)</div></div>
+    <div class="stat"><div class="num">${d.network?.latencyMs??'--'}</div><div class="label">网络延迟(ms)</div></div>
+    <div class="stat"><div class="num">${d.admin?'是':'否'}</div><div class="label">管理员</div></div>
+  `;
+}
+
+async function loadTasks() {
+  const d = await get('/api/tasks');
+  if (!d) return;
+  const s = d.stats || {};
+  document.getElementById('heroTasks').textContent = s.total || 0;
+  document.getElementById('taskTotal').textContent = s.total || 0;
+  document.getElementById('taskPending').textContent = s.pending || 0;
+  document.getElementById('taskDone').textContent = s.completed || 0;
+  document.getElementById('taskFailed').textContent = s.failed || 0;
+
+  const list = d.recent || [];
+  const el = document.getElementById('taskList');
+  if (list.length === 0) { el.innerHTML = '<div class="empty">暂无任务记录</div>'; return; }
+  el.innerHTML = list.map(t => {
+    const badge = {pending:'pending',running:'running',completed:'success',failed:'fail'}[t.status] || 'info';
+    return `<div class="list-item"><div class="name"><b>${t.description||t.id}</b></div><span class="badge ${badge}">${t.status}</span></div>`;
+  }).join('');
+}
+
+async function loadGraph() {
+  const d = await get('/api/memory/stats');
+  if (!d) return;
+  document.getElementById('heroNodes').textContent = d.nodes || 0;
+  document.getElementById('graphStats').innerHTML = `
+    <div class="stat"><div class="num">${d.nodes}</div><div class="label">节点</div></div>
+    <div class="stat"><div class="num">${d.edges}</div><div class="label">关系</div></div>
+    <div class="stat"><div class="num" style="color:var(--purple)">${d.scenes}</div><div class="label">场景</div></div>
+    <div class="stat"><div class="num" style="color:var(--accent2)">${d.actions}</div><div class="label">操作</div></div>
+  `;
+}
+
+async function loadPlugins() {
+  const d = await get('/api/plugins');
+  const el = document.getElementById('pluginList');
+  document.getElementById('heroPlugins').textContent = d?.length || 0;
+  if (!d || d.length === 0) { el.innerHTML = '<div class="empty">未注册插件</div>'; return; }
+  el.innerHTML = d.map(p => `
+    <div class="list-item">
+      <div class="name"><b>${p.name}</b> <span style="color:var(--text2)">v${p.version}</span></div>
+      <span class="badge running">${p.supportedKinds?.length || 0} 种任务</span>
+    </div>
+  `).join('');
+}
+
+async function loadSuggestions() {
+  const d = await get('/api/habits/suggestions');
+  const el = document.getElementById('suggestions');
+  if (!d || d.length === 0) { el.innerHTML = '<div class="empty">暂无推荐（使用后自动积累）</div>'; return; }
+  el.innerHTML = d.slice(0,4).map(s => `
+    <div class="suggest"><div>${s.action} <span class="badge success">${(s.confidence*100).toFixed(0)}%</span></div><div class="reason">${s.reason}</div></div>
+  `).join('');
+}
+
+async function loadPreferences() {
+  const d = await get('/api/habits/preferences');
+  const el = document.getElementById('preferences');
+  if (!d || d.length === 0) { el.innerHTML = '<div class="empty">暂无偏好</div>'; return; }
+  el.innerHTML = d.map(p => `
+    <div class="pref-row"><span class="pref-key">${p.key}</span><span class="pref-val">${p.value} <span style="color:var(--text2);font-weight:400">(${(p.confidence*100).toFixed(0)}%)</span></span></div>
+  `).join('');
+}
+
+async function loadHourChart() {
+  const d = await get('/api/habits/active-hours');
+  const el = document.getElementById('hourChart');
+  if (!d || d.length === 0) { el.innerHTML = '<div class="empty" style="width:100%;align-self:center">暂无</div>'; return; }
+  const hm = new Array(24).fill(0);
+  d.forEach(h => { hm[h.hour] = h.count; });
+  const mx = Math.max(...hm, 1);
+  el.innerHTML = hm.map((c, i) => `<div class="chart-bar" style="height:${Math.max(2, c/mx*100)}%" title="${i}:00 — ${c}次"></div>`).join('');
+}
+
+async function loadSequences() {
+  const d = await get('/api/habits/sequences');
+  const el = document.getElementById('sequenceList');
+  if (!d || d.length === 0) { el.innerHTML = '<div class="empty">暂无</div>'; return; }
+  el.innerHTML = d.slice(0,10).map(s => `<div class="list-item"><div class="name" style="font-size:11px">${s.sequence}</div><span class="badge running">${s.occurrence}次</span></div>`).join('');
+}
+
+async function loadTopTargets() {
+  const d = await get('/api/habits/top-targets');
+  const el = document.getElementById('topTargets');
+  if (!d || d.length === 0) { el.innerHTML = '<div class="empty">暂无</div>'; return; }
+  const mx = d[0]?.count || 1;
+  el.innerHTML = d.map(t => `
+    <div class="list-item"><div class="name">${t.target}</div>
+    <div style="display:flex;align-items:center;gap:8px;min-width:100px">
+      <div class="bar"><div class="fill blue" style="width:${t.count/mx*100}%"></div></div>
+      <span style="font-size:11px;color:var(--text2);min-width:24px;text-align:right">${t.count}</span>
+    </div></div>
+  `).join('');
+}
+
+async function loadSkillStats() {
+  const d = await get('/api/skills/stats');
+  if (!d) return;
+  const rate = (d.totalSuccess + d.totalFailure) > 0 ? ((d.totalSuccess / (d.totalSuccess + d.totalFailure)) * 100).toFixed(0) + '%' : '--';
+  document.getElementById('heroSkills').textContent = d.active || 0;
+  document.getElementById('skillActive').textContent = d.active || 0;
+  document.getElementById('skillRate').textContent = rate;
+  document.getElementById('skillDeprecated').textContent = d.deprecated || 0;
+  document.getElementById('skillConf').textContent = (d.avgConfidence * 100).toFixed(0) + '%';
+}
+
+async function loadSkillList() {
+  const d = await get('/api/skills?pageSize=20');
+  const el = document.getElementById('skillList');
+  if (!d || !d.skills || d.skills.length === 0) {
+    el.innerHTML = '<div class="empty">尚未学习任何技能。使用系统后会自动上网搜索、学习新技能。</div>';
+    return;
+  }
+  const colors = {url_transform:'var(--accent2)',shell_command:'var(--yellow)',multi_step:'var(--purple)',api_call:'var(--green)',tool_usage:'var(--cyan)',knowledge:'var(--text2)'};
+  el.innerHTML = d.skills.map(s => {
+    const r = (s.successCount+s.failureCount)>0 ? ((s.successCount/(s.successCount+s.failureCount))*100).toFixed(0) : '--';
+    const c = colors[s.type] || 'var(--text2)';
+    return `<div class="list-item"><div class="name"><b>${s.name}</b> <span style="color:var(--text2);font-size:10px">${s.source||''}</span></div>
+    <div style="display:flex;gap:6px;align-items:center">
+      <span class="badge" style="background:${c}15;color:${c}">${s.type}</span>
+      <span style="font-size:11px;color:var(--text2)">${(s.confidence*100).toFixed(0)}%</span>
+      <span style="font-size:11px;color:var(--green)">${r}%</span>
+    </div></div>`;
+  }).join('');
+}
+
+async function loadAudit() {
+  const d = await get('/api/security/audit');
+  const el = document.getElementById('auditList');
+  if (!d || d.length === 0) { el.innerHTML = '<div class="empty">暂无审计日志</div>'; return; }
+  el.innerHTML = d.slice(0,20).map(a => {
+    const badge = a.level === 'blocked' ? 'fail' : a.level === 'caution' ? 'pending' : 'success';
+    return `<div class="list-item"><div class="name" style="font-size:11px">${a.action || a.description || '--'}</div>
+      <div style="display:flex;gap:6px;align-items:center">
+        <span class="badge ${badge}">${a.level}</span>
+        <span style="font-size:10px;color:var(--text3)">${a.time ? new Date(a.time).toLocaleString('zh-CN') : ''}</span>
+      </div></div>`;
+  }).join('');
+}
+
+function loadAll() {
+  loadSystem(); loadTasks(); loadGraph(); loadPlugins();
+  loadSuggestions(); loadPreferences(); loadHourChart();
+  loadSequences(); loadTopTargets();
+  loadSkillStats(); loadSkillList(); loadAudit();
+}
+
+loadAll();
+setInterval(loadAll, 30000);
+</script>
+</body>
+</html>

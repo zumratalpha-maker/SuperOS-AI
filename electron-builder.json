@@ -1,0 +1,23 @@
+{
+  "$schema": "https://raw.githubusercontent.com/electron-userland/electron-builder/master/packages/app-builder-lib/scheme.json",
+  "appId": "com.superos.agent",
+  "productName": "SuperOS",
+  "directories": {
+    "output": "release"
+  },
+  "files": [
+    "dist/**/*",
+    "src/electron/renderer/**/*",
+    "src/dashboard/public/**/*",
+    "node_modules/**/*"
+  ],
+  "win": {
+    "target": ["nsis"],
+    "icon": null
+  },
+  "nsis": {
+    "oneClick": false,
+    "allowToChangeInstallationDirectory": true,
+    "installerLanguages": ["zh_CN", "en_US"]
+  }
+}

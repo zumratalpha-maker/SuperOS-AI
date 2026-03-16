@@ -1,0 +1,1 @@
+D:\SuperOS\target\release\libsupereye.rlib: D:\SuperOS\crates\supereye\src\actions.rs D:\SuperOS\crates\supereye\src\ipc.rs D:\SuperOS\crates\supereye\src\lib.rs D:\SuperOS\crates\supereye\src\profile.rs D:\SuperOS\crates\supereye\src\uia.rs D:\SuperOS\crates\supereye\src\windows.rs

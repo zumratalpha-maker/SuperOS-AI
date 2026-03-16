@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "directshell": {
+      "command": "py",
+      "args": [
+        "D:\\DirectShell\\ds-mcp\\server.py",
+        "--profiles",
+        "D:\\DirectShell\\ds_profiles"
+      ],
+      "cwd": "D:\\DirectShell"
+    }
+  }
+}
