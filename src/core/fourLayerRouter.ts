@@ -75,16 +75,8 @@ const DEFAULT_CONFIG: FourLayerConfig = {
 
 /** 从 cacheEntry 的 strategy 映射到 EngineType */
 function cacheStrategyToEngine(strategy: SuccessEntry["strategy"]): EngineType {
-  switch (strategy) {
-    case "coordinate":
-      return "uia";
-    case "tab_order":
-      return "uia";
-    case "shortcut":
-      return "shortcut";
-    default:
-      return "uia";
-  }
+  if (strategy === "shortcut") return "shortcut";
+  return "uia";
 }
 
 /** 构建 cache 的 lookup key */
@@ -265,10 +257,11 @@ export class FourLayerRouter {
         needsNetwork: !!context.isWebApp || !!context.url,
       });
     } catch (e) {
+      // 前置校验异常不阻塞执行，但标记为非正常
       return {
-        ok: true,
-        warnings: [`前置校验异常: ${(e as Error).message}`],
-        errors: [],
+        ok: false,
+        warnings: [],
+        errors: [`前置校验异常: ${(e as Error).message}`],
       };
     }
   }

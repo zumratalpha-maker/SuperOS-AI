@@ -243,7 +243,7 @@ html,body{background:transparent;overflow:hidden;font-family:'Segoe UI','Microso
   </div>
 
   <div class="hint-bar">
-    <span id="statusPill" class="status-pill"><span class="dot"></span>READY</span>
+    <span id="statusPill" class="status-pill"><span class="dot"></span>就绪</span>
     <span>Alt+Space</span>
   </div>
 </div>
@@ -289,7 +289,11 @@ function setLayerBadge(layer) {
 
 /* ─── War Room DAG 面板 ─── */
 function showWarRoom(steps) {
-  if (!steps || steps.length === 0) { warRoom.classList.remove('active'); resize(); return; }
+  if (!steps || steps.length === 0) {
+    warRoom.classList.remove('active');
+    resize();
+    return;
+  }
   warRoom.classList.add('active');
   dagFlow.innerHTML = '';
   steps.forEach((step, i) => {
@@ -367,7 +371,7 @@ async function send() {
   cmd.value = '';
   cmd.style.height = '36px';
   addMsg('user', text);
-  setStatus('PROCESSING', true);
+  setStatus('处理中…', true);
   setLayerBadge('exec');
   showTyping();
 
@@ -387,12 +391,12 @@ async function send() {
     } else {
       addMsg('bot', result.error || '无法识别指令', { kind: 'error' });
     }
-    setStatus('READY', false);
+    setStatus('就绪', false);
     setLayerBadge('idle');
   } catch (err) {
     hideTyping();
     addMsg('bot', '执行异常: ' + (err.message || ''), { kind: 'error' });
-    setStatus('READY', false);
+    setStatus('就绪', false);
     setLayerBadge('idle');
   }
 }
@@ -416,7 +420,7 @@ function startVoice() {
   recognition.onstart = () => {
     isRecording = true;
     voiceBtn.classList.add('recording');
-    setStatus('LISTENING', true);
+    setStatus('聆听中…', true);
     cmd.placeholder = '正在聆听…';
   };
 
@@ -445,7 +449,7 @@ function stopVoice() {
   if (recognition) { try { recognition.stop(); } catch {} }
   isRecording = false;
   voiceBtn.classList.remove('recording');
-  setStatus('READY', false);
+  setStatus('就绪', false);
   cmd.placeholder = currentMode === 'voice' ? '点击麦克风或按住空格说话…' : '输入指令…';
 }
 
