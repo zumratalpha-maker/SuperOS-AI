@@ -114,7 +114,7 @@ export function showOverlay(): void {
     `[Console]::InputEncoding = [System.Text.Encoding]::UTF8; [Console]::OutputEncoding = [System.Text.Encoding]::UTF8; & '${SCRIPT_PATH}'`,
   ], {
     stdio: ["pipe", "pipe", "pipe"],
-    windowsHide: false,
+    windowsHide: true,
     env: { ...process.env, PYTHONIOENCODING: "utf-8" },
   });
 
